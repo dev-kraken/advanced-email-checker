@@ -19,8 +19,6 @@ interface VerificationResult {
 
 const resolveMx = promisify(dns.resolveMx);
 
-const disposableDomainCache = new Set<string>();
-
 async function checkMxRecords(domain: string): Promise<boolean> {
     try {
         const records = await resolveMx(domain);
@@ -69,33 +67,28 @@ async function checkMxRecords(domain: string): Promise<boolean> {
 async function isDisposable(email: string): Promise<boolean> {
     const domain = email.split('@')[1];
 
-    if (disposableDomainCache.has(domain)) {
-        return true;
-    }
 
     const disposableDomain = await prisma.tempEmailDomains.findFirst({
         where: {emailDomain: domain}
     });
 
-    if (disposableDomain) {
-        disposableDomainCache.add(domain);
-        return true;
-    }
+    if (!disposableDomain) {
 
-    try {
-        const response = await axios.get(`https://disposable.debounce.io/?email=${email}`);
-        const isDisposable = response.data.disposable === 'true';
+        try {
+            const response = await axios.get(`https://disposable.debounce.io/?email=${email}`);
+            const isDisposable = response.data.disposable === 'true';
 
-        if (isDisposable) {
-            await prisma.tempEmailDomains.create({data: {emailDomain: domain}});
-            disposableDomainCache.add(domain);
+            if (isDisposable) {
+                await prisma.tempEmailDomains.create({data: {emailDomain: domain}});
+            }
+
+            return isDisposable;
+        } catch (error) {
+            logger.error('Failed to validate email:', error);
+            return false;
         }
-
-        return isDisposable;
-    } catch (error) {
-        logger.error('Failed to validate email:', error);
-        return false;
     }
+    return true
 }
 
 async function verifyEmail(email: string): Promise<VerificationResult> {
