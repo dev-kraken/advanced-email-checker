@@ -1,0 +1,51 @@
+{
+  "name": "advanced-email-checker",
+  "version": "1.0.0",
+  "description": "A Node.js service to verify email addresses by checking MX records and SMTP validity, implemented with TypeScript.",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "email",
+    "verification",
+    "mx records",
+    "smtp",
+    "typescript",
+    "node.js"
+  ],
+  "author": "Dev Kraken <soman@devkraken.com> (https://devkraken)",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devkraken/advanced-email-checker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/devkraken/advanced-email-checker/issues"
+  },
+  "homepage": "https://github.com/devkraken/advanced-email-checker#readme",
+  "dependencies": {
+    "@types/node": "^20.14.8",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "nodemailer": "^6.9.14",
+    "validator": "^13.12.0",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/nodemailer": "^6.4.15",
+    "@types/validator": "^13.12.0",
+    "@typescript-eslint/eslint-plugin": "^6.5.2",
+    "@typescript-eslint/parser": "^6.5.2",
+    "eslint": "^8.52.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  }
+}
