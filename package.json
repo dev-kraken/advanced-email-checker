@@ -4,6 +4,7 @@
   "description": "A Node.js service to verify email addresses by checking MX records and SMTP validity, implemented with TypeScript.",
   "main": "dist/index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "build": "npx prisma generate && tsc",
