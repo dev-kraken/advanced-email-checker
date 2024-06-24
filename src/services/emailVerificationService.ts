@@ -33,13 +33,12 @@ async function checkMxRecords(domain: string): Promise<boolean> {
 }
 
 async function checkSmtp(email: string): Promise<boolean> {
-    const [user, domain] = email.split('@');
+    const [_, domain] = email.split('@');
     try {
         const records = await resolveMx(domain);
         if (records.length === 0) return false;
 
         const mxHost = records[0].exchange;
-        console.log(mxHost)
         const transporter = nodemailer.createTransport({
             host: mxHost,
             port: 25,
@@ -47,17 +46,20 @@ async function checkSmtp(email: string): Promise<boolean> {
             tls: {
                 rejectUnauthorized: false
             },
-            connectionTimeout: 5000 // 5 seconds
+            connectionTimeout: 5000, // 5 seconds timeout
+            greetingTimeout: 5000, // 5 seconds timeout for the server greeting
+            socketTimeout: 5000 // 5 seconds timeout for the socket
         });
 
         return new Promise((resolve) => {
-            transporter.verify((error) => {
+            transporter.verify((error, _) => {
                 if (error) {
                     logger.error(`SMTP validation failed for email ${email}: ${error.message}`);
                     resolve(false);
                 } else {
                     resolve(true);
                 }
+                transporter.close();
             });
         });
     } catch (err) {
