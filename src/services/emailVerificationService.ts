@@ -71,7 +71,7 @@ async function isDisposable(email: string): Promise<boolean> {
     const disposableDomain = await prisma.tempEmailDomains.findFirst({
         where: {emailDomain: domain}
     });
-
+    console.log(disposableDomain)
     if (!disposableDomain) {
 
         try {
