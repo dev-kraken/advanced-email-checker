@@ -11,10 +11,5 @@
       "src": "/(.*)",
       "dest": "/src/index.ts"
     }
-  ],
-  "functions": {
-    "/verify-email.ts": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }

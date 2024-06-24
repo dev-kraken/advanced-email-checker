@@ -1,7 +1,6 @@
 import dns from 'dns';
-import { promisify } from 'util';
+import {promisify} from 'util';
 import validator from 'validator';
-import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
 import axios from 'axios';
 import prisma from '../config/prismaClient';
@@ -32,40 +31,40 @@ async function checkMxRecords(domain: string): Promise<boolean> {
     }
 }
 
-async function checkSmtp(email: string): Promise<boolean> {
-    // const [user, domain] = email.split('@');
-    // try {
-    //     const records = await resolveMx(domain);
-    //     if (records.length === 0) return false;
-    //
-    //     const mxHost = records[0].exchange;
-    //
-    //     const transporter = nodemailer.createTransport({
-    //         host: mxHost,
-    //         port: 25,
-    //         secure: false, // use TLS
-    //         tls: {
-    //             rejectUnauthorized: false
-    //         },
-    //         connectionTimeout: 5000 // 5 seconds
-    //     });
-    //
-    //     return new Promise((resolve) => {
-    //         transporter.verify((error) => {
-    //             if (error) {
-    //                 logger.error(`SMTP validation failed for email ${email}: ${error.message}`);
-    //                 resolve(false);
-    //             } else {
-    //                 resolve(true);
-    //             }
-    //         });
-    //     });
-    // } catch (err) {
-    //     logger.error(`SMTP validation failed for email ${email}: ${(err as Error).message}`);
-    //     return false;
-    // }
-    return false;
-}
+// async function checkSmtp(email: string): Promise<boolean> {
+//     // const [user, domain] = email.split('@');
+//     // try {
+//     //     const records = await resolveMx(domain);
+//     //     if (records.length === 0) return false;
+//     //
+//     //     const mxHost = records[0].exchange;
+//     //
+//     //     const transporter = nodemailer.createTransport({
+//     //         host: mxHost,
+//     //         port: 25,
+//     //         secure: false, // use TLS
+//     //         tls: {
+//     //             rejectUnauthorized: false
+//     //         },
+//     //         connectionTimeout: 5000 // 5 seconds
+//     //     });
+//     //
+//     //     return new Promise((resolve) => {
+//     //         transporter.verify((error) => {
+//     //             if (error) {
+//     //                 logger.error(`SMTP validation failed for email ${email}: ${error.message}`);
+//     //                 resolve(false);
+//     //             } else {
+//     //                 resolve(true);
+//     //             }
+//     //         });
+//     //     });
+//     // } catch (err) {
+//     //     logger.error(`SMTP validation failed for email ${email}: ${(err as Error).message}`);
+//     //     return false;
+//     // }
+//     return false;
+// }
 
 async function isDisposable(email: string): Promise<boolean> {
     const domain = email.split('@')[1];
@@ -75,7 +74,7 @@ async function isDisposable(email: string): Promise<boolean> {
     }
 
     const disposableDomain = await prisma.tempEmailDomains.findFirst({
-        where: { emailDomain: domain }
+        where: {emailDomain: domain}
     });
 
     if (disposableDomain) {
@@ -88,7 +87,7 @@ async function isDisposable(email: string): Promise<boolean> {
         const isDisposable = response.data.disposable === 'true';
 
         if (isDisposable) {
-            await prisma.tempEmailDomains.create({ data: { emailDomain: domain } });
+            await prisma.tempEmailDomains.create({data: {emailDomain: domain}});
             disposableDomainCache.add(domain);
         }
 
@@ -114,21 +113,21 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
         };
     }
 
-    const [isDisposableEmail, hasMxRecords, smtpValid] = await Promise.all([
+    const [isDisposableEmail, hasMxRecords] = await Promise.all([
         isDisposable(email),
         checkMxRecords(email.split('@')[1]),
-        checkSmtp(email)
+        // checkSmtp(email)
     ]);
 
     const result: VerificationResult = {
         is_disposable: isDisposableEmail,
         has_mx_records: hasMxRecords,
-        smtp_valid: smtpValid,
+        smtp_valid: false,
         errors: {
             syntax: null,
             disposable_email: isDisposableEmail ? 'Email is from a disposable email provider' : null,
             mx_records: hasMxRecords ? null : 'Domain does not have valid MX records',
-            smtp: smtpValid ? null : 'SMTP validation failed',
+            smtp: 'SMTP validation failed',
         },
     };
 
