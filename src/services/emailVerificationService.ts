@@ -16,6 +16,8 @@ interface VerificationResult {
         receive_email: string | null;
     };
     ip_address: string | null;
+    domain: string;
+    subdomain: string;
 }
 
 const resolveMx = promisify(dns.resolveMx);
@@ -121,6 +123,8 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
                 receive_email: null,
             },
             ip_address: null,
+            domain: '',
+            subdomain: '',
         };
     }
 
@@ -145,6 +149,8 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
             receive_email: canReceiveEmailResult ? null : 'Email cannot receive emails',
         },
         ip_address: ipAddress,
+        domain,
+        subdomain,
     };
 
     logger.info(`Email verification result for ${email}: ${JSON.stringify(result)}`);
