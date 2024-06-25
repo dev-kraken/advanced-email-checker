@@ -1,5 +1,4 @@
 import dns from 'dns';
-import {promisify} from 'util';
 import validator from 'validator';
 import logger from '../utils/logger';
 import axios from 'axios';
@@ -13,23 +12,48 @@ interface VerificationResult {
         disposable_email: string | null;
         mx_records: string | null;
     };
+    ip_address: string | null;
 }
 
-const resolveMx = promisify(dns.resolveMx);
-
 const disposableDomainCache = new Set<string>();
+const disposableIpCache = new Set<string>();
+
+// Add known disposable IPs to the cache
+disposableIpCache.add('167.172.13.163');
 
 async function checkMxRecords(domain: string): Promise<boolean> {
     try {
-        const records = await resolveMx(domain);
+        const records = await dns.promises.resolveMx(domain);
         return records.length > 0;
-    } catch (err) {
-        logger.error(`MX record check failed for domain ${domain}: ${(err as Error).message}`);
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            logger.error(`MX record check failed for domain ${domain}: ${err.message}`);
+        } else {
+            logger.error(`MX record check failed for domain ${domain}: unknown error`);
+        }
         return false;
     }
 }
 
-async function isDisposable(email: string): Promise<boolean> {
+async function getDomainIp(domain: string): Promise<string | null> {
+    try {
+        const addresses = await dns.promises.resolve4(domain);
+        return addresses.length > 0 ? addresses[0] : null;
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            if ((err as NodeJS.ErrnoException).code === 'ENODATA') {
+                logger.warn(`No A records found for domain ${domain}`);
+            } else {
+                logger.error(`IP address check failed for domain ${domain}: ${err.message}`);
+            }
+        } else {
+            logger.error(`IP address check failed for domain ${domain}: unknown error`);
+        }
+        return null;
+    }
+}
+
+async function isDisposable(email: string, ipAddress: string | null): Promise<boolean> {
     const domain = email.split('@')[1];
 
     if (disposableDomainCache.has(domain)) {
@@ -54,9 +78,17 @@ async function isDisposable(email: string): Promise<boolean> {
             disposableDomainCache.add(domain);
         }
 
+        if (isDisposable || (ipAddress && disposableIpCache.has(ipAddress))) {
+            return true;
+        }
+
         return isDisposable;
-    } catch (error) {
-        logger.error('Failed to validate email:', error);
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            logger.error('Failed to validate email:', error.message);
+        } else {
+            logger.error('Failed to validate email: unknown error');
+        }
         return false;
     }
 }
@@ -71,12 +103,17 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
                 disposable_email: null,
                 mx_records: null,
             },
+            ip_address: null,
         };
     }
 
+    const domain = email.split('@')[1];
+    const subdomain = `mail.${domain}`;
+    const ipAddress = await getDomainIp(subdomain) || await getDomainIp(domain);
+
     const [isDisposableEmail, hasMxRecords] = await Promise.all([
-        isDisposable(email),
-        checkMxRecords(email.split('@')[1]),
+        isDisposable(email, ipAddress),
+        checkMxRecords(domain),
     ]);
 
     const result: VerificationResult = {
@@ -87,6 +124,7 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
             disposable_email: isDisposableEmail ? 'Email is from a disposable email provider' : null,
             mx_records: hasMxRecords ? null : 'Domain does not have valid MX records',
         },
+        ip_address: ipAddress,
     };
 
     logger.info(`Email verification result for ${email}: ${JSON.stringify(result)}`);
