@@ -1,4 +1,5 @@
 import dns from 'dns';
+import {promisify} from 'util';
 import validator from 'validator';
 import logger from '../utils/logger';
 import axios from 'axios';
@@ -7,13 +8,18 @@ import prisma from '../config/prismaClient';
 interface VerificationResult {
     is_disposable: boolean;
     has_mx_records: boolean;
+    can_receive_email: boolean;
     errors: {
         syntax: string | null;
         disposable_email: string | null;
         mx_records: string | null;
+        receive_email: string | null;
     };
     ip_address: string | null;
 }
+
+const resolveMx = promisify(dns.resolveMx);
+const resolve4 = promisify(dns.resolve4);
 
 const disposableDomainCache = new Set<string>();
 const disposableIpCache = new Set<string>();
@@ -23,7 +29,7 @@ disposableIpCache.add('167.172.13.163');
 
 async function checkMxRecords(domain: string): Promise<boolean> {
     try {
-        const records = await dns.promises.resolveMx(domain);
+        const records = await resolveMx(domain);
         return records.length > 0;
     } catch (err: unknown) {
         if (err instanceof Error) {
@@ -37,7 +43,7 @@ async function checkMxRecords(domain: string): Promise<boolean> {
 
 async function getDomainIp(domain: string): Promise<string | null> {
     try {
-        const addresses = await dns.promises.resolve4(domain);
+        const addresses = await resolve4(domain);
         return addresses.length > 0 ? addresses[0] : null;
     } catch (err: unknown) {
         if (err instanceof Error) {
@@ -93,15 +99,26 @@ async function isDisposable(email: string, ipAddress: string | null): Promise<bo
     }
 }
 
+// A mock function to demonstrate checking if an email can receive emails.
+// This function simulates the behavior of an SMTP server check, but it should be replaced
+// with an actual SMTP verification implementation if needed.
+async function canReceiveEmail(domain: string): Promise<boolean> {
+    // Implement SMTP handshake here if needed
+    // For now, we assume that if MX records exist, the email can receive emails
+    return checkMxRecords(domain);
+}
+
 async function verifyEmail(email: string): Promise<VerificationResult> {
     if (!validator.isEmail(email)) {
         return {
             is_disposable: false,
             has_mx_records: false,
+            can_receive_email: false,
             errors: {
                 syntax: 'Invalid email syntax',
                 disposable_email: null,
                 mx_records: null,
+                receive_email: null,
             },
             ip_address: null,
         };
@@ -111,18 +128,21 @@ async function verifyEmail(email: string): Promise<VerificationResult> {
     const subdomain = `mail.${domain}`;
     const ipAddress = await getDomainIp(subdomain) || await getDomainIp(domain);
 
-    const [isDisposableEmail, hasMxRecords] = await Promise.all([
+    const [isDisposableEmail, hasMxRecords, canReceiveEmailResult] = await Promise.all([
         isDisposable(email, ipAddress),
         checkMxRecords(domain),
+        canReceiveEmail(domain),
     ]);
 
     const result: VerificationResult = {
         is_disposable: isDisposableEmail,
         has_mx_records: hasMxRecords,
+        can_receive_email: canReceiveEmailResult,
         errors: {
             syntax: null,
             disposable_email: isDisposableEmail ? 'Email is from a disposable email provider' : null,
             mx_records: hasMxRecords ? null : 'Domain does not have valid MX records',
+            receive_email: canReceiveEmailResult ? null : 'Email cannot receive emails',
         },
         ip_address: ipAddress,
     };
