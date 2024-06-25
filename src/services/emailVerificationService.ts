@@ -33,7 +33,7 @@ async function checkMxRecords(domain: string): Promise<boolean> {
 }
 
 async function checkSmtp(email: string): Promise<boolean> {
-    const [_, domain] = email.split('@');
+    const [user, domain] = email.split('@');
     try {
         const records = await resolveMx(domain);
         if (records.length === 0) return false;
@@ -52,7 +52,7 @@ async function checkSmtp(email: string): Promise<boolean> {
         });
 
         return new Promise((resolve) => {
-            transporter.verify((error, _) => {
+            transporter.verify((error, success) => {
                 if (error) {
                     logger.error(`SMTP validation failed for email ${email}: ${error.message}`);
                     resolve(false);
